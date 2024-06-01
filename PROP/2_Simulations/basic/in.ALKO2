@@ -1,0 +1,70 @@
+# REAX potential for CHO system
+# .....
+
+units		real # time is fs, length is anstrom
+#boundary 	p p p
+
+atom_style	charge
+read_data	data.ALKO2  # coordinates
+
+pair_style	reaxff lmp_control # checkqeq no  # reax/c now is "reaxff"
+pair_coeff	* * ffield.reax.cho2016 C H O   # parametrized ff for specific system
+
+neighbor	2 bin
+neigh_modify	every 10 delay 0 check no
+
+group ALKC id 2 3 6 9 12
+
+velocity all create 3500 8 rot yes sum no mom yes dist gaussian
+#velocity all set 0 0 0
+
+### Ensemble
+#fix 			fnvt all nvt temp 300.0 3000.0 100.0 # nose hoover 0.1ps
+#fix			fnve1 all nve
+#fix            fnve2 all temp/berendsen 3000.0 3000.0 10.0  # this is for fix nve
+
+
+## Charge equilibrium
+fix				 fqeq all qeq/shielded 1 8 1e-6 100 reaxff
+#fix             fqeq all qeq/reax 1 0.0 10.0 1e-6 reaxff  #param.qeq  
+
+### Add electric field
+#variable t equal step*0.1  # fs
+#variable E equal 0*10^-4  # amplitude V/A 10^-3 = E-3
+#variable f equal 0.1 	# frequency THz=1/fs
+#variable Et equal v_E*cos(2*PI*v_f*v_t)  # 10^12Hz*10^-12s=1
+
+thermo          10000   #1000 = 0.1ps
+thermo_style    custom step temp press #epair etotal press
+              
+timestep	0.1   # fs
+
+
+#### Annealing 300000 = 100K/ps
+
+#fix 	fnvt all nvt temp 300.0 3000.0 100.0 # nose hoover 0.1ps
+#run		300000
+
+
+#### Production
+
+fix 		fnvt all nvt temp 3500.0 3500.0 10.0 # nose hoover 10 = 10 fs
+#fix			fnve1 all nve
+#fix         fnve2 all temp/berendsen 3000.0 3000.0 10.0  # this is for fix nve
+
+#fix			fef all efield 0.0 0.0 v_Et
+
+#dump		1 all atom 1000 dump.reax.lammpstrj 
+dump		1 all custom 10000 dumpC0.reax.lammpstrj type id x y z vx vy vz q # for continue
+dump		2 ALKC custom 10 dump0.reax.lammpstrj type id x y z # for analysis
+
+fix			fspecy all reaxff/species 10 10 100 species0.ALKO2  ##10000frames=1Mb
+
+# 1: sample bond every 1 steps. 1: comute bond by taking the average of 1 steps, 100: do this every 100 steps and output species to file.
+
+#fix 	fbond all reaxff/bonds 1000 bonds.reaxff
+
+run		100000  # 10000000 = 1ns
+
+# mpirun --cpu-set 0-7 --use-hwthread-cpus -np 8 lmp_gpu -in in.CH4O2 
+# tail -f species.CH4O2
