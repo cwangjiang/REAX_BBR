@@ -1,0 +1,17 @@
+; Include forcefield parameters
+#include "./gromos54a7_atb.ff/forcefield.itp"
+
+#include "./ALK.itp"
+#include "./O2.itp"
+
+; Include water topology
+#include "./gromos54a7_atb.ff/spc.itp"
+
+[ system ]
+; Name
+ALK O2
+
+[ molecules ]
+; Compound        #mols
+ ALK		  1
+O2               9
